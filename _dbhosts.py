@@ -1,8 +1,8 @@
-﻿import asyncio
+import asyncio
 import asyncpg
 
 async def test(host):
-    dsn = f"postgresql://vibestream:vibestream@{host}:5432/vibestream"
+    dsn = f"postgresql://vibestream:vibestream@{host}:55432/vibestream"
     try:
         conn = await asyncpg.connect(dsn)
         v = await conn.fetchval("select version()")

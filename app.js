@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 // Defensive boot: avoid hard crash if CDN globals fail to load.
 const hasRecharts = typeof window !== "undefined" && !!window.Recharts;
@@ -80,15 +80,11 @@ async function apiFetch(path, fallback = null) {
 function usePolling(fn, ms) {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState("connecting");
-  const fnRef = useRef(fn);
-  useEffect(() => {
-    fnRef.current = fn;
-  }, [fn]);
 
   useEffect(() => {
     let alive = true;
     const tick = async () => {
-      const v = await fnRef.current();
+      const v = await fn();
       if (!alive) return;
       if (v !== null && v !== undefined) {
         setData(v);
@@ -103,7 +99,7 @@ function usePolling(fn, ms) {
       alive = false;
       clearInterval(id);
     };
-  }, [ms]);
+  }, [ms, fn]);
 
   return [data, status];
 }
@@ -667,6 +663,7 @@ function OHLCVChart() {
                   interval: "preserveStartEnd",
                 }),
                 R(YAxis, {
+                  domain: ["auto", "auto"],
                   tick: {
                     fill: "var(--text-dim)",
                     fontSize: 8,
@@ -679,6 +676,7 @@ function OHLCVChart() {
                 }),
                 R(Tooltip, { content: R(Tip) }),
                 R(Area, {
+                  isAnimationActive: false,
                   type: "monotone",
                   dataKey: "close",
                   stroke: color,
@@ -742,6 +740,7 @@ function OHLCVChart() {
                   tickFormatter: fmt.usdK,
                 }),
                 R(Area, {
+                  isAnimationActive: false,
                   type: "monotone",
                   dataKey: "vol",
                   stroke: "var(--text-dim)",
@@ -1310,17 +1309,23 @@ function App() {
     2000,
   );
 
+  const header = useMemo(() => R(Header, { stats, wsStatus: statsStatus }), [stats, statsStatus]);
+  const live = useMemo(() => R(LiveTradeStream), []);
+  const ohlcv = useMemo(() => R(OHLCVChart), []);
+  const statsPanel = useMemo(() => R(StatsPanel, { stats }), [stats]);
+  const right = useMemo(() => R(RightPanel), []);
+
   return R(
     "div",
     { className: "terminal" },
-    R(Header, { stats, wsStatus: statsStatus }),
+    header,
     R(
       "div",
       { className: "main-grid" },
-      R(LiveTradeStream), // gridColumn:1 gridRow:1/3  (set inside component)
-      R(OHLCVChart), // gridColumn:2 gridRow:1    (set inside component)
-      R(StatsPanel, { stats }), // gridColumn:2 gridRow:2    (set inside component)
-      R(RightPanel), // gridColumn:3 gridRow:1/3  (set inside component)
+      live, // gridColumn:1 gridRow:1/3  (set inside component)
+      ohlcv, // gridColumn:2 gridRow:1    (set inside component)
+      statsPanel, // gridColumn:2 gridRow:2    (set inside component)
+      right, // gridColumn:3 gridRow:1/3  (set inside component)
     ),
   );
 }

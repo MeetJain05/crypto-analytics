@@ -130,26 +130,46 @@ async def live_trades(
     if not _db_pool:
         raise HTTPException(503, "DB not ready")
 
-    where = "WHERE time > NOW() - INTERVAL '5 minutes'"
-    params: list = [limit]
+    where_sym = "AND symbol = $2" if symbol else ""
+    params: list = [limit // 2 if not symbol else limit]
 
     if symbol:
-        where += " AND symbol = $2"
-        params.append(symbol.upper())
+        async with _db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                SELECT trade_id, time, symbol, price, quantity,
+                       usd_value, classification, z_score, is_anomaly
+                FROM trades_enriched
+                WHERE time > NOW() - INTERVAL '5 minutes'
+                {where_sym}
+                ORDER BY time DESC
+                LIMIT $1
+                """,
+                *params,
+                *(symbol.upper(),) if symbol else (),
+            )
+        return _rows_to_json(rows)
 
+    # No symbol filter — fetch per-symbol to guarantee both BTC and ETH appear
     async with _db_pool.acquire() as conn:
         rows = await conn.fetch(
             f"""
             SELECT trade_id, time, symbol, price, quantity,
                    usd_value, classification, z_score, is_anomaly
-            FROM trades_enriched
-            {where}
+            FROM (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY symbol ORDER BY time DESC
+                ) AS rn
+                FROM trades_enriched
+                WHERE time > NOW() - INTERVAL '5 minutes'
+            ) sub
+            WHERE rn <= $1
             ORDER BY time DESC
-            LIMIT $1
             """,
-            *params,
+            params[0],
         )
     return _rows_to_json(rows)
+
 
 
 # ══════════════════════════════════════════════════════════
@@ -241,18 +261,30 @@ async def stats():
 
 @app.get("/ohlcv/{symbol}", tags=["data"])
 async def ohlcv(symbol: str, minutes: int = Query(default=60, le=1440)):
-    """1-minute OHLCV candles from the continuous aggregate."""
+    """
+    1-minute OHLCV candles built directly from trades_enriched.
+    Avoids the 1-minute lag from the continuous aggregate's end_offset policy.
+    """
     if not _db_pool:
         raise HTTPException(503, "DB not ready")
     async with _db_pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT bucket, open, high, low, close,
-                   volume, usd_volume, trade_count,
-                   anomaly_count, avg_z_score
-            FROM trades_1min_ohlcv
+            SELECT
+                time_bucket('1 minute', time) AS bucket,
+                first(price, time)            AS open,
+                max(price)                    AS high,
+                min(price)                    AS low,
+                last(price, time)             AS close,
+                sum(quantity)                 AS volume,
+                sum(usd_value)                AS usd_volume,
+                count(*)                      AS trade_count,
+                count(*) FILTER (WHERE is_anomaly) AS anomaly_count,
+                avg(z_score)                  AS avg_z_score
+            FROM trades_enriched
             WHERE symbol = $1
-              AND bucket > NOW() - ($2 * INTERVAL '1 minute')
+              AND time > NOW() - ($2 * INTERVAL '1 minute')
+            GROUP BY bucket
             ORDER BY bucket ASC
             """,
             symbol.upper(), minutes,
@@ -382,30 +414,24 @@ async def ws_trades(websocket: WebSocket):
 
             try:
                 async with _db_pool.acquire() as conn:
-                    # Fetch trades newer than what we last sent
-                    if last_trade_id is None:
-                        rows = await conn.fetch("""
-                            SELECT trade_id, time, symbol, price, quantity,
-                                   usd_value, classification, z_score, is_anomaly
+                    # Fetch the latest N trades PER SYMBOL so both BTC and ETH
+                    # always appear, even when one symbol has much higher throughput.
+                    rows = await conn.fetch("""
+                        SELECT trade_id, time, symbol, price, quantity,
+                               usd_value, classification, z_score, is_anomaly
+                        FROM (
+                            SELECT *, ROW_NUMBER() OVER (
+                                PARTITION BY symbol ORDER BY time DESC
+                            ) AS rn
                             FROM trades_enriched
-                            WHERE time > NOW() - INTERVAL '3 seconds'
-                            ORDER BY time DESC
-                            LIMIT 20
-                        """)
-                    else:
-                        rows = await conn.fetch("""
-                            SELECT trade_id, time, symbol, price, quantity,
-                                   usd_value, classification, z_score, is_anomaly
-                            FROM trades_enriched
-                            WHERE trade_id > $1
-                              AND time > NOW() - INTERVAL '10 seconds'
-                            ORDER BY time DESC
-                            LIMIT 20
-                        """, last_trade_id)
+                            WHERE time > NOW() - INTERVAL '2 seconds'
+                        ) sub
+                        WHERE rn <= 20
+                        ORDER BY time DESC
+                    """)
 
                 if rows:
                     trades = _rows_to_json(rows)
-                    last_trade_id = max(r["trade_id"] for r in trades)
                     await websocket.send_json({"type": "trades", "data": trades})
 
             except Exception as exc:

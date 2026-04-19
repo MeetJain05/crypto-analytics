@@ -1,8 +1,8 @@
-﻿import asyncio
+import asyncio
 import asyncpg
 
 async def main():
-    dsn = "postgresql://vibestream:vibestream@localhost:5432/vibestream"
+    dsn = "postgresql://vibestream:vibestream@localhost:55432/vibestream"
     try:
         conn = await asyncpg.connect(dsn)
         user = await conn.fetchval("select current_user")
