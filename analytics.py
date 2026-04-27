@@ -1,16 +1,3 @@
-#!/usr/bin/env python3
-# ============================================================
-# VibeStream-Alpha: Analytics Engine (PRD §3)
-# ============================================================
-# Stateful per-symbol processor that maintains a 60-second
-# sliding window and performs:
-#   A. USD Value normalization
-#   B. Behavioral classification (Retail / Pro / Whale)
-#   C. Z-Score anomaly detection with warm-up guard
-#
-# PRD §4.2: State Store with collections.deque
-# PRD §5: Edge cases (clock drift, stale data, data gaps)
-# ============================================================
 
 from __future__ import annotations
 
@@ -131,7 +118,7 @@ class SymbolState:
 
     def is_warmed_up(self) -> bool:
         """
-        PRD §4.2: Window must have ≥ 30 data points before flagging.
+        Window must have ≥ 30 data points before flagging.
 
         After a data gap, we require ≥ WARMUP_MIN_SAMPLES entries that
         arrived POST-gap before clearing the pause. This prevents the
@@ -219,14 +206,14 @@ class AnalyticsEngine:
     @staticmethod
     def compute_z_score(value: float, values: list[float]) -> Optional[float]:
         """
-        PRD §3C: z = (x - μ) / σ
+        z = (x - μ) / σ
 
         Improvement — Low-Variance Handling:
           In production, the window can occasionally have near-zero variance
           (e.g., a very stable trading period). Raw pstdev=0 → z=0 regardless
           of how extreme the new value is, causing missed anomalies.
 
-          Fix: apply a σ floor of 0.1% of the mean (relative minimum dispersion).
+          Apply a σ floor of 0.1% of the mean (relative minimum dispersion).
           This is the "regularized z-score" pattern used in prod anomaly detectors.
           Effect: a value 10× the mean against a flat window gets z ≈ 9000,
           correctly flagged as extreme. Normal values still get z ≈ 0.
@@ -279,7 +266,7 @@ class AnalyticsEngine:
         classification = self.classify(usd_value)
 
         # ── Step 7 & 8: Z-score + anomaly flag ───────────
-        # FIX B5: Compute z-score BEFORE adding current trade to window.
+        # Compute z-score BEFORE adding current trade to window.
         # The z-score measures how anomalous the current observation is
         # relative to the existing distribution. Including the observation
         # in its own distribution deflates the z-score (especially for

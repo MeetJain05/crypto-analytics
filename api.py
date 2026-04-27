@@ -1,16 +1,3 @@
-#!/usr/bin/env python3
-# ============================================================
-# VibeStream-Alpha: FastAPI — Complete Rewrite
-# ============================================================
-# Fixes & Additions:
-#   + CORS middleware (was missing → frontend blocked)
-#   + /live_trades endpoint (was missing)
-#   + /anomalies clean route (was /stats/anomalies only)
-#   + /stats summary endpoint (was missing)
-#   + /comparison cross-asset endpoint (was missing)
-#   + WebSocket /ws/trades for push updates (was missing)
-#   + Serialization helpers for datetime/Decimal types
-# ============================================================
 
 from __future__ import annotations
 
@@ -83,10 +70,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS — FIX: was missing, frontend on different port was blocked ──
+# ── CORS ──
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # Tighten to specific origins in production
+    allow_origins=["*"],     
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

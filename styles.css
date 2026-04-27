@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    VIBESTREAM TERMINAL — DESIGN SYSTEM
    Bloomberg Terminal × Crypto War Room
 ════════════════════════════════════════════════════════════ */
@@ -243,7 +243,7 @@ body::after {
 }
 
 /* ── MAIN GRID ───────────────────────────────────────────────
-   FIX 2 & 3: explicit grid-column / grid-row on every child
+   Explicit grid-column / grid-row on every child
    so layout never depends on browser auto-placement heuristics.
    3 cols × 2 rows:
      col1 row1-2 : LiveTrades
@@ -330,7 +330,7 @@ body::after {
   border: 1px solid rgba(255, 187, 0, 0.18);
 }
 
-/* FIX 1: panel-body uses flex:1 + min-height:0, not height:100% */
+/* panel-body uses flex:1 + min-height:0, not height:100% */
 .panel-body {
   flex: 1;
   min-height: 0;
@@ -720,7 +720,7 @@ body::after {
 }
 
 /* ── STATS GRID ──────────────────────────────────────────── */
-/* FIX 3: explicit grid-column:2 / grid-row:2 set inline in JS */
+/* Explicit grid-column:2 / grid-row:2 set inline in JS */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

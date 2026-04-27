@@ -1,6 +1,3 @@
-# ============================================================
-# VibeStream-Alpha: Unified Trade Schema (PRD §2.1)
-# ============================================================
 
 from __future__ import annotations
 
@@ -128,7 +125,7 @@ class BinanceAggTrade(BaseModel):
     def to_raw_trade(self) -> RawTrade:
         """Normalize Binance aggTrade → unified RawTrade.
         
-        FIX B2: datetime.utcfromtimestamp() is deprecated in Python 3.12
+        Note: datetime.utcfromtimestamp() is deprecated in Python 3.12
         and returns a naive (timezone-unaware) datetime.
         Using datetime.fromtimestamp(ts, tz=timezone.utc) ensures:
           - Timezone-aware object throughout the pipeline

@@ -292,7 +292,7 @@ function LiveTradeStream() {
     "div",
     {
       className: "panel",
-      // FIX 2: explicit placement
+      // Explicit placement
       style: { gridColumn: "1", gridRow: "1 / 3" },
     },
     // header
@@ -569,7 +569,7 @@ function OHLCVChart() {
     "div",
     {
       className: "panel",
-      // FIX 2: explicit placement
+      // Explicit placement
       style: { gridColumn: "2", gridRow: "1" },
     },
     R(
@@ -612,7 +612,7 @@ function OHLCVChart() {
       ),
     ),
 
-    // FIX 1: chart-area uses flex:1 + min-height:0, not height:100%
+    // Chart-area uses flex:1 + min-height:0, not height:100%
     data.length === 0
       ? R(
           "div",
@@ -829,7 +829,7 @@ function StatsPanel({ stats }) {
     "div",
     {
       className: "stats-grid",
-      // FIX 3: explicit grid placement
+      // Explicit grid placement
       style: { gridColumn: "2", gridRow: "2" },
     },
     cells.map((c, i) =>
@@ -899,7 +899,7 @@ function RightPanel() {
     "div",
     {
       className: "panel",
-      // FIX 2: explicit placement
+      // Explicit placement
       style: { gridColumn: "3", gridRow: "1 / 3" },
     },
 

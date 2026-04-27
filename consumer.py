@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# ============================================================
-# VibeStream-Alpha: Kafka Consumer — FIXED
-# Fixes: B3 (deferred commits), B7 (deprecated get_event_loop)
-# ============================================================
-
 from __future__ import annotations
 
 import asyncio
@@ -72,13 +66,8 @@ class VibeStreamConsumer:
     """
     Async Kafka consumer.
 
-    B3 Fix — Deferred Offset Commits:
-      Original: commit called immediately after `sink.write()` which only
-      buffers in memory. If the process crashed before the 100ms batch flush,
-      the Kafka offset was committed but the data was never in the DB → silent
-      data loss.
-
-      Fix: Don't commit per-message. Instead:
+    Deferred Offset Commits:
+      Don't commit per-message. Instead:
         1. Track the latest seen Message per partition in _pending_commits
         2. Register a post-flush callback with the sink
         3. After each successful DB flush, commit the tracked offsets
@@ -98,7 +87,7 @@ class VibeStreamConsumer:
         self._last_stats_log: float = time.monotonic()
         self._last_high_rate_warn: float = 0.0
 
-        # B3 fix: track the latest message per partition for deferred commits
+        # track the latest message per partition for deferred commits
         self._pending_commits: dict[int, Message] = {}
 
     def _build_kafka_consumer(self) -> Consumer:
@@ -140,7 +129,7 @@ class VibeStreamConsumer:
 
     async def _commit_pending_offsets(self) -> None:
         """
-        B3 Fix: called by the DB sink after every successful flush.
+        Called by the DB sink after every successful flush.
         Commits the latest seen offset for each partition.
         """
         if not self._pending_commits or not self._consumer:
@@ -205,7 +194,7 @@ class VibeStreamConsumer:
             await self.sink.write(enriched)
             self.metrics.record(is_anomaly=enriched.is_anomaly)
 
-            # B3 fix: track latest message per partition instead of committing immediately.
+            # track latest message per partition instead of committing immediately.
             # The DB sink's post-flush callback will commit these after DB write succeeds.
             self._pending_commits[msg.partition()] = msg
 
@@ -221,7 +210,7 @@ class VibeStreamConsumer:
 
     async def start(self) -> None:
         await self.sink.connect()
-        # B3 fix: register deferred commit callback
+        # register deferred commit callback
         self.sink.register_post_flush_callback(self._commit_pending_offsets)
 
         self._consumer = self._build_kafka_consumer()
@@ -248,7 +237,7 @@ class VibeStreamConsumer:
 async def main() -> None:
     consumer = VibeStreamConsumer()
 
-    # B7 fix: use asyncio.get_running_loop() inside async context
+    # use asyncio.get_running_loop() inside async context
     loop = asyncio.get_running_loop()
 
     def _shutdown(sig_name: str) -> None:

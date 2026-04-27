@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-# ============================================================
-# VibeStream-Alpha: Kafka Producer
-# ============================================================
-# Connects to Binance combined stream WebSocket, normalizes
-# each aggTrade to RawTrade schema, and publishes to Kafka
-# with symbol-based partitioning (BTC→0, ETH→1).
-#
-# PRD §2: Data Ingestion & Schema
-# PRD §4.1: Kafka partitioning by symbol
-# ============================================================
-
 from __future__ import annotations
 
 import asyncio
@@ -38,11 +26,6 @@ from schemas import BinanceCombinedStream, RawTrade
 # ── Logging ────────────────────────────────────────────────
 logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT)
 log = logging.getLogger("vibestream.producer")
-
-
-# ══════════════════════════════════════════════════════════
-# ProducerMetrics: lightweight in-process stats
-# ══════════════════════════════════════════════════════════
 class ProducerMetrics:
     def __init__(self) -> None:
         self.messages_received: int = 0
@@ -72,10 +55,6 @@ class ProducerMetrics:
             self.uptime_seconds,
         )
 
-
-# ══════════════════════════════════════════════════════════
-# VibeStreamProducer
-# ══════════════════════════════════════════════════════════
 class VibeStreamProducer:
     """
     Async producer that:

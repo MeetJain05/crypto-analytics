@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-# ============================================================
-# VibeStream-Alpha: Database Sink — FIXED
-# Fixes: B3 (deferred commits via callbacks), B4 (broken re-queue lock)
-# ============================================================
 
 from __future__ import annotations
 
@@ -55,14 +50,13 @@ class DatabaseSink:
     """
     Batched async writer to TimescaleDB.
 
-    B3 Fix — Deferred Kafka commits:
+    Deferred Kafka commits:
       Kafka offsets must be committed only AFTER the data reaches the DB.
       `register_post_flush_callback(cb)` lets the consumer register its
       commit function. It fires after every successful executemany().
 
-    B4 Fix — Broken re-queue:
-      Original: `async with asyncio.Lock()` created a new unguarded lock each
-      time. Since _flush_buffer_locked runs while holding self._buffer_lock,
+    Re-queue Strategy:
+      Since _flush_buffer_locked runs while holding self._buffer_lock,
       re-queuing just requires direct assignment — no extra lock needed.
     """
 
@@ -142,7 +136,7 @@ class DatabaseSink:
         if not self._pool:
             log.error("❌ No DB pool — re-queuing %d records", len(batch))
             self.metrics.flush_errors += 1
-            # B4 FIX: already hold _buffer_lock; assign directly, no new Lock()
+            # Already hold _buffer_lock; assign directly, no new Lock()
             self._buffer = batch + self._buffer
             return
 
@@ -153,7 +147,7 @@ class DatabaseSink:
             self.metrics.record_flush(len(batch))
             log.debug("💾 Flushed | reason=%s rows=%d", reason, len(batch))
 
-            # B3 FIX: fire callbacks so consumer commits Kafka offsets
+            # Fire callbacks so consumer commits Kafka offsets
             # only after data is confirmed written to the DB
             for cb in self._post_flush_callbacks:
                 try:
@@ -164,7 +158,7 @@ class DatabaseSink:
         except (asyncpg.PostgresConnectionError, asyncpg.TooManyConnectionsError) as exc:
             log.error("DB connection error: %s — re-queuing batch", exc)
             self.metrics.flush_errors += 1
-            # B4 FIX: re-queue inside lock scope, no new Lock() object
+            # Re-queue inside lock scope, no new Lock() object
             self._buffer = batch + self._buffer
 
         except Exception as exc:
